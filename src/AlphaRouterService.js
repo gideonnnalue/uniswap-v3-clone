@@ -58,7 +58,7 @@ export const getPrice = async (
   };
 
   const qouteAmountOut = route.qoute.toFixed(6);
-  const ratio = (qouteAmountOut / inputAmount).toFixed(3);
+  const ratio = (inputAmount / qouteAmountOut).toFixed(3);
 
   return [transaction, qouteAmountOut, ratio];
 };

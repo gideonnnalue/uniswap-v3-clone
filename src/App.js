@@ -7,7 +7,12 @@ import ConfigModal from "./components/ConfigModal";
 import CurrencyField from "./components/CurrencyField";
 import "./App.css";
 import { BeatLoader } from "react-spinners";
-import {getWethContract, getUniContract, getPrice, runSwap} from './AlphaRouterService';
+import {
+  getWethContract,
+  getUniContract,
+  getPrice,
+  runSwap,
+} from "./AlphaRouterService";
 
 function App() {
   const [provider, setProvider] = useState(undefined);
@@ -53,8 +58,12 @@ function App() {
       setSignerAddress(address);
 
       // connect weth and uni contracts
-      wethContract.balanceOf(address).then(res => {setWethAmount(Number(ethers.utils.formatEther(res)))})
-      uniContract.balanceOf(address).then(res => {setUniAmount(Number(ethers.utils.formatEther(res)))})
+      wethContract.balanceOf(address).then((res) => {
+        setWethAmount(Number(ethers.utils.formatEther(res)));
+      });
+      uniContract.balanceOf(address).then((res) => {
+        setUniAmount(Number(ethers.utils.formatEther(res)));
+      });
     });
   };
 
@@ -68,15 +77,15 @@ function App() {
     const swap = getPrice(
       inputAmount,
       slippageAmount,
-      Math.floor(Date.now()/1000 + (deadlineMinutes * 60)),
+      Math.floor(Date.now() / 1000 + deadlineMinutes * 60),
       signerAddress
-    ).then(data => {
-      setTransaction(data[0])
-      setOutputAmount(data[1])
+    ).then((data) => {
+      setTransaction(data[0]);
+      setOutputAmount(data[1]);
       setRatio(data[2]);
-      setLoading(false)
-    })
-  }
+      setLoading(false);
+    });
+  };
   return (
     <div className="App">
       <div className="appNav">
@@ -136,6 +145,23 @@ function App() {
               spinner={BeatLoader}
               loading={loading}
             />
+          </div>
+          <div className="ratioContainer">
+            {ratio && <>{`1 UNI = ${ratio} WETH`}</>}
+          </div>
+          <div className="swapButtonContainer">
+            {isConnected() ? (
+              <div
+                onClick={() => runSwap(transaction, signer)}
+                className="swapButton"
+              >
+                Swap
+              </div>
+            ) : (
+              <div onClick={() => getSigner(provider)} className="swapButton">
+                Connect Wallet
+              </div>
+            )}
           </div>
         </div>
       </div>
