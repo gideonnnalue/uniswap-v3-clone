@@ -4,42 +4,78 @@ import { GearFill } from "react-bootstrap-icons";
 import PageButton from "./components/PageButton";
 import ConnectButton from "./components/ConnectButton";
 import ConfigModal from "./components/ConfigModal";
-import './App.css';
+import CurrencyField from "./components/CurrencyField";
+import "./App.css";
+import { BeatLoader } from "react-spinners";
+import {getWethContract, getUniContract, getPrice, runSwap} from './AlphaRouterService';
 
 function App() {
   const [provider, setProvider] = useState(undefined);
   const [signer, setSigner] = useState(undefined);
   const [signerAddress, setSignerAddress] = useState(undefined);
   const [showModal, setShowModal] = useState(false);
-  const [deadlineMinutes, setDeadlineMinutes] = useState(0);
-  const [slippageAmount, setSlippageAmount] = useState(0);
+  const [deadlineMinutes, setDeadlineMinutes] = useState(10);
+  const [slippageAmount, setSlippageAmount] = useState(2);
 
-  useEffect(()=>{
+  const [inputAmount, setInputAmount] = useState("");
+  const [outputAmount, setOutputAmount] = useState("");
+  const [transaction, setTransaction] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [ratio, setRatio] = useState("");
+  const [wethContract, setWethContract] = useState(undefined);
+  const [uniContract, setUniContract] = useState(undefined);
+  const [wethAmount, setWethAmount] = useState(0);
+  const [uniAmount, setUniAmount] = useState(0);
+
+  useEffect(() => {
     const onLoad = async () => {
       const provider = await new ethers.providers.Web3Provider(window.ethereum);
-      setProvider(provider)
-    }
-    onLoad();
-  },[]);
+      setProvider(provider);
 
-  const getSigner = async provider => {
+      const wethContract = getWethContract();
+      setWethContract(wethContract);
+
+      const uniContract = getUniContract();
+      setUniContract(uniContract);
+    };
+    onLoad();
+  }, []);
+
+  const getSigner = async (provider) => {
     await provider.send("eth_requestAccounts", []);
     const signer = await provider.getSigner();
     setSigner(signer);
-  }
+  };
 
   const isConnected = () => signer !== undefined;
   const getWalletAddress = () => {
-    signer.getAddress()
-    .then(address => {
+    signer.getAddress().then((address) => {
       setSignerAddress(address);
 
       // connect weth and uni contracts
-    })
+      wethContract.balanceOf(address).then(res => {setWethAmount(Number(ethers.utils.formatEther(res)))})
+      uniContract.balanceOf(address).then(res => {setUniAmount(Number(ethers.utils.formatEther(res)))})
+    });
+  };
+
+  if (signer !== undefined) {
+    getWalletAddress();
   }
 
-  if(signer !== undefined) {
-    getWalletAddress();
+  const getSwapPrice = (inputAmount) => {
+    setLoading(true);
+    setInputAmount(inputAmount);
+    const swap = getPrice(
+      inputAmount,
+      slippageAmount,
+      Math.floor(Date.now()/1000 + (deadlineMinutes * 60)),
+      signerAddress
+    ).then(data => {
+      setTransaction(data[0])
+      setOutputAmount(data[1])
+      setRatio(data[2]);
+      setLoading(false)
+    })
   }
   return (
     <div className="App">
@@ -53,10 +89,15 @@ function App() {
 
         <div className="rightNav">
           <div className="connectButtonContainer">
-            <ConnectButton provider={provider} isConnected={isConnected} signerAddress={signerAddress} getSigner={getSigner} />
+            <ConnectButton
+              provider={provider}
+              isConnected={isConnected}
+              signerAddress={signerAddress}
+              getSigner={getSigner}
+            />
           </div>
           <div className="my-2 buttonContainer">
-          <PageButton name="..." isBold={true} />
+            <PageButton name="..." isBold={true} />
           </div>
         </div>
       </div>
@@ -64,18 +105,37 @@ function App() {
         <div className="swapContainer">
           <div className="swapHeader">
             <span className="swapText">Swap</span>
-            <span className="gearContainer">
+            <span className="gearContainer" onClick={() => setShowModal(true)}>
               <GearFill />
             </span>
             {showModal && (
               <ConfigModal
-                onClose={()=>setShowModal(false)}
+                onClose={() => setShowModal(false)}
                 setDeadlineMinutes={setDeadlineMinutes}
                 deadlineMinutes={deadlineMinutes}
                 setSlippageAmount={setSlippageAmount}
                 slippageAmount={slippageAmount}
               />
             )}
+          </div>
+
+          <div className="swapBody">
+            <CurrencyField
+              field="input"
+              tokenName="WETH"
+              getSwapPrice={getSwapPrice}
+              signer={signer}
+              balance={wethAmount}
+            />
+            <CurrencyField
+              field="output"
+              tokenName="UNI"
+              value={outputAmount}
+              signer={signer}
+              balance={uniAmount}
+              spinner={BeatLoader}
+              loading={loading}
+            />
           </div>
         </div>
       </div>
